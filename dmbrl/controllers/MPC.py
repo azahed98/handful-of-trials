@@ -368,7 +368,7 @@ class MPC(Controller):
                                              tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
                                                                                   .2,  
                                                                                   interpolation="higher",
-                                                                                  keep_dims=True), 1.5)
+                                                                                  keep_dims=True), 7.5)
                                              ) ,tf.bool)
 
             # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
@@ -404,7 +404,7 @@ class MPC(Controller):
             return costs, pred_trajs
         else:
             return costs
-            
+
     def _predict_next_obs(self, obs, acs, return_uncertainties=False):
         proc_obs = self.obs_preproc(obs)
 
