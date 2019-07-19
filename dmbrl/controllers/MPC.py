@@ -356,64 +356,6 @@ class MPC(Controller):
                 t, costs, cur_obs, pred_trajs = while_ret
             else:
                 raise NotImplementedError
-            if self.adap_hor == "adaptive":
-                    cum_uncert = tf.math.cumsum(uncertainties, axis=0)[self.plan_min:, :]
-
-
-                    cropped_trajs = tf.reshape(pred_trajs[self.plan_min + 1:], [-1, self.dO])
-                    safety_mask = tf.reshape(tf.py_func(unsafe, [cropped_trajs], tf.bool), [-1, nopt * self.npart])
-                    # uncert_mask = tf.cast(tf.greater(cum_uncert, 1) ,tf.bool)
-                    uncert_mask = tf.cast(tf.greater(cum_uncert, 
-                                                     tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
-                                                                                          .2,  
-                                                                                          interpolation="higher",
-                                                                                          keep_dims=True), 1.5)
-                                                     ) ,tf.bool)
-
-                    # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
-                    uncert_mask = tf.concat([tf.zeros_like(uncert_mask[0])[None,:], uncert_mask[1:, :]], axis=0)
-                    
-                    uncert_mask = tf.Print(uncert_mask, [tf.reduce_sum(tf.cast(uncert_mask, tf.float32), axis=0),
-                                                         cum_uncert[:,15],
-                                                         tf.reduce_mean(tf.reduce_sum(tf.cast(uncert_mask, tf.float32), axis=0))], 
-                                            message="Uncertainty mask")
-                    complete_mask = tf.where(safety_mask, tf.ones_like(uncert_mask), uncert_mask)
-
-                    all_costs = tf.reshape(all_costs, [-1, nopt * self.npart])
-                    divisor = tf.tile(tf.range(1, self.plan_hor+1, dtype=tf.float32)[self.plan_min:, None], [1, nopt * self.npart])
-                    all_costs = all_costs[self.plan_min:, :]
-                    all_costs = tf.where(complete_mask, -1e6 * tf.ones_like(all_costs), all_costs)
-
-                    horizons = tf.reduce_max((1-tf.cast(complete_mask, dtype=tf.int32))*tf.cast(divisor, dtype=tf.int32), axis=0)
-                    
-                    all_costs = tf.Print(all_costs, 
-                                         [tf.reduce_mean(horizons), tf.reduce_max(horizons)],
-                                         message="Average, max horizon")
-
-                    all_costs = tf.tile(tf.reduce_max(all_costs, axis=0)[None, :], [self.plan_hor - self.plan_min, 1])
-
-                    all_costs = tf.where(complete_mask, 1e6 * tf.ones_like(all_costs), all_costs)
-
-                    # all_costs = all_costs / divisor * self.plan_hor
-
-                    minned_costs = tf.reduce_min(all_costs, axis=0)[None, :]
-                    minned_costs = tf.reshape(minned_costs, [nopt, self.npart])
-                    costs = minned_costs
-
-
-                    cur_obs = tf.gather_nd(tf.transpose(tf.reshape(pred_trajs[1:], [self.plan_hor, -1, self.dO]), [1, 0, 2]), 
-                                           tf.concat([tf.range(0, nopt * self.npart, dtype=tf.int32)[:,None], (horizons-1)[:,None]],axis=1))
-
-                    value_mean, value_var = self.value_func.value(cur_obs, factored=True)
-                    conf_mean, conf_var = tf.nn.moments(value_mean, axes=[0])
-                    value_UB = conf_mean #+ (self.cur_t_value/np.sqrt(self.model.num_nets) ) * tf.sqrt(conf_var)
-                    costs = costs + tf.reshape(value_UB, [-1, self.npart])
-                else:
-                    value_mean, value_var = self.value_func.value(cur_obs, factored=True)
-                    conf_mean, conf_var = tf.nn.moments(value_mean, axes=[0])
-                    value_UB = conf_mean #+ (self.cur_t_value/np.sqrt(self.model.num_nets) ) * tf.sqrt(conf_var)
-                    costs = costs + tf.reshape(value_UB, [-1, self.npart])
-                    costs = tf.where(tf.py_func(unsafe, [cur_obs], tf.bool), 1e6 * tf.ones_like(costs), costs)
             
             if self.adap_hor == "adaptive":
                 cum_uncert = tf.math.cumsum(uncertainties, axis=0)[self.plan_min:, :]
