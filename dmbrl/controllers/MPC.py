@@ -289,7 +289,7 @@ class MPC(Controller):
         if get_pred_trajs:
             pred_trajs = init_obs[None]
 
-            def iteration(t, total_cost, cur_obs, pred_trajs):
+            def iteration(t, total_cost, cur_obs, pred_trajs, cost_trajs, stabilizable_obs):
                 cur_acs = ac_seqs[t]
                 if self.adap_hor == "heuristic":
                     next_obs, total, aleatoric, epistemic = self._predict_next_obs(cur_obs, cur_acs, return_uncertainties=True)
