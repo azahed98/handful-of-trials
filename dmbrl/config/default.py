@@ -40,6 +40,9 @@ def create_config(env_name, ctrl_type, ctrl_args, overrides, logdir):
             ),
             opt_cfg=DotMap(
                 plan_hor=int,
+                adap_hor=str,
+                plan_min=int,
+                adap_param=float,
             ),
             log_cfg=DotMap(
                 save_all_models=make_bool,
@@ -93,6 +96,9 @@ def _create_ctrl_config(ctrl_cfg, cfg_module, ctrl_type, ctrl_args, type_map):
             ctrl_cfg.prop_cfg.targ_proc = cfg_module.targ_proc
 
         ctrl_cfg.opt_cfg.plan_hor = cfg_module.PLAN_HOR
+        ctrl_cfg.opt_cfg.adap_hor = cfg_module.ADAP_HOR
+        ctrl_cfg.opt_cfg.plan_min = cfg_module.PLAN_MIN
+        ctrl_cfg.opt_cfg.adap_param = cfg_module.ADAP_PARAM
         ctrl_cfg.opt_cfg.obs_cost_fn = cfg_module.obs_cost_fn
         ctrl_cfg.opt_cfg.ac_cost_fn = cfg_module.ac_cost_fn
 

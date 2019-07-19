@@ -17,7 +17,10 @@ class PusherConfigModule:
     TASK_HORIZON = 150
     NTRAIN_ITERS = 100
     NROLLOUTS_PER_ITER = 1
-    PLAN_HOR = 25
+    PLAN_HOR = 45
+    ADAP_HOR = "adaptive"
+    PLAN_MIN = 10
+    ADAP_PARAM = 1.0
     MODEL_IN, MODEL_OUT = 27, 20
     GP_NINDUCING_POINTS = 200
 

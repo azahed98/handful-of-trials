@@ -271,35 +271,193 @@ class MPC(Controller):
             [1, 1, self.npart, 1]
         ), [self.plan_hor, -1, self.dU])
         init_obs = tf.tile(self.sy_cur_obs[None], [nopt * self.npart, 1])
+        popsize = int(int(init_obs.shape[0])/self.npart)
 
         def continue_prediction(t, *args):
             return tf.less(t, self.plan_hor)
+
+        def continue_prediction_heuristic(t, total_cost, cur_obs, pred_trajs, uncertainties, *args):
+            uncertainty_avg = tf.reduce_mean(uncertainties)
+            h = tf.cast(1.0/(tf.log(.5 * uncertainty_avg + 1)), tf.int32)
+            h = tf.maximum(h, self.plan_min)
+            return tf.math.reduce_all([tf.less(t, h), tf.less(t, self.plan_hor)])
 
         if get_pred_trajs:
             pred_trajs = init_obs[None]
 
             def iteration(t, total_cost, cur_obs, pred_trajs):
                 cur_acs = ac_seqs[t]
-                next_obs = self._predict_next_obs(cur_obs, cur_acs)
-                delta_cost = tf.reshape(
-                    self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
-                )
-                next_obs = self.obs_postproc2(next_obs)
-                pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
-                return t + 1, total_cost + delta_cost, next_obs, pred_trajs
+                if self.adap_hor == "heuristic":
+                    next_obs, total, aleatoric, epistemic = self._predict_next_obs(cur_obs, cur_acs, return_uncertainties=True)
+                    uncertainties_shape = uncertainties.shape
 
-            _, costs, _, pred_trajs = tf.while_loop(
-                cond=continue_prediction, body=iteration, loop_vars=[t, init_costs, init_obs, pred_trajs],
-                shape_invariants=[
-                    t.get_shape(), init_costs.get_shape(), init_obs.get_shape(), tf.TensorShape([None, None, self.dO])
-                ]
+                    uncertainties = tf.cond(tf.less(t, 1), 
+                                            lambda: tf.reshape(total, [-1, int((popsize * self.npart) /self.model.num_nets)]), 
+                                            lambda: uncertainties)
+                    uncertainties = tf.reshape(uncertainties, [-1, uncertainties_shape[1]])
+
+                    delta_cost = tf.reshape(
+                        self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
+                    )
+                    next_obs = self.obs_postproc2(next_obs)
+                    pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
+                    return t + 1, total_cost + delta_cost, next_obs, pred_trajs, uncertainties
+
+                elif self.adap_hor == "adaptive":
+                    next_obs, total, aleatoric, epistemic = self._predict_next_obs(cur_obs, cur_acs, return_uncertainties=True)
+                    uncertainties = tf.concat([uncertainties, total[None]], axis=0)
+                    delta_cost = tf.reshape(
+                        self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
+                    )
+                    total_cost = total_cost + delta_cost
+                    all_costs = tf.concat([all_costs, total_cost[None]], axis=0)
+                    next_obs = self.obs_postproc2(next_obs)
+                    pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
+                    return t+1, total_cost, next_obs, pred_trajs, uncertainties, all_costs
+                
+                elif self.adap_hor is None:
+                    next_obs = self._predict_next_obs(cur_obs, cur_acs)
+                    delta_cost = tf.reshape(
+                        self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
+                    )
+                    next_obs = self.obs_postproc2(next_obs)
+                    pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
+                    return t + 1, total_cost + delta_cost, next_obs, pred_trajs
+                
+                else:
+                    raise NotImplementedError
+
+
+            loop_vars = [t, init_costs, init_obs, pred_trajs]
+            shape_invariants = [t.get_shape(), init_costs.get_shape(), init_obs.get_shape(), tf.TensorShape([None, None, self.dO])]
+
+            cont_fn = continue_prediction
+            if self.adap_hor:
+                uncertainties = tf.zeros(shape=[0,init_obs.shape[0]])
+                loop_vars.append(uncertainties)
+                shape_invariants.append(tf.TensorShape([None, uncertainties.shape[1]]))
+                cont_fn = continue_prediction_heuristic
+            if self.adap_hor == "adaptive":
+                all_costs = tf.zeros(shape=[0, init_costs.shape[0], init_costs.shape[1]])
+                loop_vars.append(all_costs)
+                shape_invariants.append(tf.TensorShape([None, all_costs.shape[1], all_costs.shape[2]]))
+                cont_fn = continue_prediction
+            while_ret = tf.while_loop(
+                cond=cont_fn, body=iteration, loop_vars=loop_vars,
+                shape_invariants=shape_invariants
             )
+            if self.adap_hor == "heuristic":
+                t, costs, cur_obs, pred_trajs, uncertainties = while_ret
+                t = tf.Print(t, [t], message="Trajectory length")
+                # costs = costs/ tf.cast(t, tf.float32)
+            elif self.adap_hor == "adaptive":
+                t, costs, cur_obs, pred_trajs, uncertainties, all_costs = while_ret
+            elif self.adap_hor is None:
+                t, costs, cur_obs, pred_trajs = while_ret
+            else:
+                raise NotImplementedError
+            if self.adap_hor == "adaptive":
+                    cum_uncert = tf.math.cumsum(uncertainties, axis=0)[self.plan_min:, :]
 
+
+                    cropped_trajs = tf.reshape(pred_trajs[self.plan_min + 1:], [-1, self.dO])
+                    safety_mask = tf.reshape(tf.py_func(unsafe, [cropped_trajs], tf.bool), [-1, nopt * self.npart])
+                    # uncert_mask = tf.cast(tf.greater(cum_uncert, 1) ,tf.bool)
+                    uncert_mask = tf.cast(tf.greater(cum_uncert, 
+                                                     tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
+                                                                                          .2,  
+                                                                                          interpolation="higher",
+                                                                                          keep_dims=True), 1.5)
+                                                     ) ,tf.bool)
+
+                    # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
+                    uncert_mask = tf.concat([tf.zeros_like(uncert_mask[0])[None,:], uncert_mask[1:, :]], axis=0)
+                    
+                    uncert_mask = tf.Print(uncert_mask, [tf.reduce_sum(tf.cast(uncert_mask, tf.float32), axis=0),
+                                                         cum_uncert[:,15],
+                                                         tf.reduce_mean(tf.reduce_sum(tf.cast(uncert_mask, tf.float32), axis=0))], 
+                                            message="Uncertainty mask")
+                    complete_mask = tf.where(safety_mask, tf.ones_like(uncert_mask), uncert_mask)
+
+                    all_costs = tf.reshape(all_costs, [-1, nopt * self.npart])
+                    divisor = tf.tile(tf.range(1, self.plan_hor+1, dtype=tf.float32)[self.plan_min:, None], [1, nopt * self.npart])
+                    all_costs = all_costs[self.plan_min:, :]
+                    all_costs = tf.where(complete_mask, -1e6 * tf.ones_like(all_costs), all_costs)
+
+                    horizons = tf.reduce_max((1-tf.cast(complete_mask, dtype=tf.int32))*tf.cast(divisor, dtype=tf.int32), axis=0)
+                    
+                    all_costs = tf.Print(all_costs, 
+                                         [tf.reduce_mean(horizons), tf.reduce_max(horizons)],
+                                         message="Average, max horizon")
+
+                    all_costs = tf.tile(tf.reduce_max(all_costs, axis=0)[None, :], [self.plan_hor - self.plan_min, 1])
+
+                    all_costs = tf.where(complete_mask, 1e6 * tf.ones_like(all_costs), all_costs)
+
+                    # all_costs = all_costs / divisor * self.plan_hor
+
+                    minned_costs = tf.reduce_min(all_costs, axis=0)[None, :]
+                    minned_costs = tf.reshape(minned_costs, [nopt, self.npart])
+                    costs = minned_costs
+
+
+                    cur_obs = tf.gather_nd(tf.transpose(tf.reshape(pred_trajs[1:], [self.plan_hor, -1, self.dO]), [1, 0, 2]), 
+                                           tf.concat([tf.range(0, nopt * self.npart, dtype=tf.int32)[:,None], (horizons-1)[:,None]],axis=1))
+
+                    value_mean, value_var = self.value_func.value(cur_obs, factored=True)
+                    conf_mean, conf_var = tf.nn.moments(value_mean, axes=[0])
+                    value_UB = conf_mean #+ (self.cur_t_value/np.sqrt(self.model.num_nets) ) * tf.sqrt(conf_var)
+                    costs = costs + tf.reshape(value_UB, [-1, self.npart])
+                else:
+                    value_mean, value_var = self.value_func.value(cur_obs, factored=True)
+                    conf_mean, conf_var = tf.nn.moments(value_mean, axes=[0])
+                    value_UB = conf_mean #+ (self.cur_t_value/np.sqrt(self.model.num_nets) ) * tf.sqrt(conf_var)
+                    costs = costs + tf.reshape(value_UB, [-1, self.npart])
+                    costs = tf.where(tf.py_func(unsafe, [cur_obs], tf.bool), 1e6 * tf.ones_like(costs), costs)
+            
+            if self.adap_hor == "adaptive":
+                cum_uncert = tf.math.cumsum(uncertainties, axis=0)[self.plan_min:, :]
+
+                cropped_trajs = tf.reshape(pred_trajs[self.plan_min + 1:], [-1, self.dO])
+                uncert_mask = tf.cast(tf.greater(cum_uncert, 
+                                                 tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
+                                                                                      .2,  
+                                                                                      interpolation="higher",
+                                                                                      keep_dims=True), 1.5)
+                                                 ) ,tf.bool)
+
+                # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
+                uncert_mask = tf.concat([tf.zeros_like(uncert_mask[0])[None,:], uncert_mask[1:, :]], axis=0)
+                
+                uncert_mask = tf.Print(uncert_mask, [tf.reduce_sum(tf.cast(uncert_mask, tf.float32), axis=0),
+                                                     cum_uncert[:,15],
+                                                     tf.reduce_mean(tf.reduce_sum(tf.cast(uncert_mask, tf.float32), axis=0))], 
+                                        message="Uncertainty mask")
+
+                all_costs = tf.reshape(all_costs, [-1, nopt * self.npart])
+                divisor = tf.tile(tf.range(1, self.plan_hor+1, dtype=tf.float32)[self.plan_min:, None], [1, nopt * self.npart])
+                all_costs = all_costs[self.plan_min:, :]
+                all_costs = tf.where(uncert_mask, -1e6 * tf.ones_like(all_costs), all_costs)
+
+                horizons = tf.reduce_max((1-tf.cast(uncert_mask, dtype=tf.int32))*tf.cast(divisor, dtype=tf.int32), axis=0)
+                
+                all_costs = tf.Print(all_costs, 
+                                     [tf.reduce_mean(horizons), tf.reduce_max(horizons)],
+                                     message="Average, max horizon")
+
+                all_costs = tf.tile(tf.reduce_max(all_costs, axis=0)[None, :], [self.plan_hor - self.plan_min, 1])
+
+                all_costs = tf.where(uncert_mask, 1e6 * tf.ones_like(all_costs), all_costs)
+
+                costs = tf.reduce_min(all_costs, axis=0)[None, :]
+                costs = tf.reshape(costs, [nopt, self.npart])
+            
             # Replace nan costs with very high cost
             costs = tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
             pred_trajs = tf.reshape(pred_trajs, [self.plan_hor + 1, -1, self.npart, self.dO])
             return costs, pred_trajs
         else:
+            raise NotImplementedError
             def iteration(t, total_cost, cur_obs):
                 cur_acs = ac_seqs[t]
                 next_obs = self._predict_next_obs(cur_obs, cur_acs)
@@ -315,7 +473,7 @@ class MPC(Controller):
             # Replace nan costs with very high cost
             return tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
 
-    def _predict_next_obs(self, obs, acs):
+    def _predict_next_obs(self, obs, acs, return_uncertainties=False):
         proc_obs = self.obs_preproc(obs)
 
         if self.model.is_tf_model:
@@ -336,6 +494,23 @@ class MPC(Controller):
             # Obtain model predictions
             inputs = tf.concat([proc_obs, acs], axis=-1)
             mean, var = self.model.create_prediction_tensors(inputs)
+
+            if return_uncertainties:
+                # uncert_inputs = tf.reshape(inputs, [self.model.num_nets, inputs.shape[1]/self.npart, self.npart, ])
+                uncert_inputs = tf.reshape(inputs, [-1, inputs.get_shape()[-1]])
+                uncert_mean, uncert_var = self.model.create_prediction_tensors(uncert_inputs, factored=True)
+
+                total, aleatoric, epistemic = VarianceUncertainty(uncert_mean, uncert_var, return_separated=True)
+                
+                total = tf.reduce_mean(tf.reshape(total, [self.npart, -1]), axis=0)
+                total = tf.reshape(tf.tile(total[None, :], [self.npart, 1]), [-1])
+
+                aleatoric = tf.reduce_mean(tf.reshape(aleatoric, [self.npart, -1]), axis=0)
+                aleatoric = tf.reshape(tf.tile(aleatoric[None, :], [self.npart, 1]), [-1])
+
+                epistemic = tf.reduce_mean(tf.reshape(epistemic, [self.npart, -1]), axis=0)
+                epistemic = tf.reshape(tf.tile(epistemic[None, :], [self.npart, 1]), [-1])
+
             if self.model.is_probabilistic and not self.ign_var:
                 predictions = mean + tf.random_normal(shape=tf.shape(mean), mean=0, stddev=1) * tf.sqrt(var)
                 if self.prop_mode == "MM":
@@ -363,6 +538,9 @@ class MPC(Controller):
                 predictions = tf.gather_nd(predictions, idxs)
                 predictions = tf.reshape(predictions, [-1, predictions.get_shape()[-1]])
 
+            if return_uncertainties:
+                return self.obs_postproc(obs, predictions), total, aleatoric, epistemic
+
             return self.obs_postproc(obs, predictions)
         else:
             raise NotImplementedError()
@@ -386,3 +564,46 @@ class MPC(Controller):
             ),
             [-1, dim]
         )
+
+def VarianceEpistemicUncertainty(means):
+    """
+    Arguments:
+        means: TF Tensor of shape [ensemble_size, batch_size, dimension]. Means of Gaussians
+        vars: TF Tensor of shape [ensemble_size, batch_size, dimension]. Variances of Gaussians
+    Returns:
+        TF Tensor of shape [btach_size] for the epistemic uncertainy as measured by Variance
+        In our case, we use Var(X) = E[ || X - E[ X ] ||_2^2 ], which is expected squared euclidean distance from the mean
+    """
+    variances = tf.nn.moments(means, axes=[0])[1]
+    collapsed_variance = tf.reduce_sum(variances, axis=1)
+    return collapsed_variance
+
+def VarianceAleatoricUncertainty(vars):
+    """
+    Arguments:
+        means: TF Tensor of shape [ensemble_size, batch_size, dimension]. Means of Gaussians
+        vars: TF Tensor of shape [ensemble_size, batch_size, dimension]. Variances of Gaussians
+    Returns:
+        TF Tensor of shape [btach_size] for the aleatoric uncertainy as measured by Variance
+        In our case, we use Var(X) = E[ || X - E[ X ] ||_2^2 ], which is expected squared euclidean distance from the mean
+    """
+    collapsed_variance = tf.reduce_sum(vars, axis=2)
+    reduced_mean = tf.reduce_mean(collapsed_variance, axis=0)
+    return reduced_mean
+
+def VarianceUncertainty(means, vars, return_separated=False):
+    """
+    Arguments:
+        means: TF Tensor of shape [ensemble_size, batch_size, dimension]. Means of Gaussians
+        vars: TF Tensor of shape [ensemble_size, batch_size, dimension]. Variances of Gaussians
+        return_separated: If true eturns total, epistemic and aleatoric uncertainty
+    Returns:
+        TF Tensors of shape [btach_size] for the total uncertainy as measured by Variance
+        In our case, we use Var(X) = E[ || X - E[ X ] ||_2^2 ], which is expected squared euclidean distance from the mean
+    """
+    aleatoric = VarianceAleatoricUncertainty(vars) 
+    epistemic = VarianceEpistemicUncertainty(means)
+    total = aleatoric + epistemic
+    if return_separated:
+        return total, aleatoric, epistemic
+    return total
