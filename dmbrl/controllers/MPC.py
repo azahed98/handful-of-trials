@@ -100,6 +100,10 @@ class MPC(Controller):
 
         self.opt_mode = get_required_argument(params.opt_cfg, "mode", "Must provide optimization method.")
         self.plan_hor = get_required_argument(params.opt_cfg, "plan_hor", "Must provide planning horizon.")
+        self.adap_hor = params.opt_cfg.get("adap_hor", None)
+        self.plan_min = params.opt_cfg.get("plan_min", 10)
+        self.adap_param = params.opt_cfg.get("adap_param", 1.0)
+
         self.obs_cost_fn = get_required_argument(params.opt_cfg, "obs_cost_fn", "Must provide cost on observations.")
         self.ac_cost_fn = get_required_argument(params.opt_cfg, "ac_cost_fn", "Must provide cost on actions.")
 
