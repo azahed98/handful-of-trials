@@ -230,7 +230,8 @@ class MPC(Controller):
                 )[0]
             else:
                 raise NotImplementedError()
-            return self.act(obs, t), pred_cost
+            action, plan_hor = self.act(obs, t)
+            return action, plan_hor, pred_cost
         elif self.log_traj_preds or self.log_particles:
             pred_cost, pred_traj = self.model.sess.run(
                 [self.pred_cost, self.pred_traj],
@@ -243,7 +244,8 @@ class MPC(Controller):
                 self.pred_means.append(np.mean(pred_traj, axis=1))
                 self.pred_vars.append(np.mean(np.square(pred_traj - self.pred_means[-1]), axis=1))
             if get_pred_cost:
-                return self.act(obs, t), pred_cost
+                action, plan_hor = self.act(obs, t)
+                return action, plan_hor, pred_cost
         return self.act(obs, t)
 
     def dump_logs(self, primary_logdir, iter_logdir):
