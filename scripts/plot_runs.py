@@ -21,7 +21,7 @@ def plot_returns(returns):
     plt.xlabel('Iteration')
     plt.ylabel("Return")
     plt.title("Training Curve")
-    plt.ylim(0, 110)
+    # plt.ylim(0, 110)
     plt.savefig('returns.png')
     plt.show()
     plt.close()

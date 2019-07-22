@@ -50,14 +50,16 @@ class Agent:
         recorder = None if not video_record else VideoRecorder(self.env, record_fname)
 
         times, rewards = [], []
-        O, A, reward_sum, done = [self.env.reset()], [], 0, False
+        O, A, plan_hors, reward_sum, done = [self.env.reset()], [], [], 0, False
 
         policy.reset()
         for t in range(horizon):
             if video_record:
                 recorder.capture_frame()
             start = time.time()
-            A.append(policy.act(O[t], t))
+            a, plan_hor = policy.act(O[t], t)
+            A.append(a)
+            plan_hors.append(plan_hor)
             times.append(time.time() - start)
 
             if self.noise_stddev is None:
@@ -84,4 +86,5 @@ class Agent:
             "ac": np.array(A),
             "reward_sum": reward_sum,
             "rewards": np.array(rewards),
+            "plan_hor": np.array(plan_hors)
         }

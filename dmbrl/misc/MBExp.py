@@ -75,7 +75,7 @@ class MBExperiment:
         """
         os.makedirs(self.logdir, exist_ok=True)
 
-        traj_obs, traj_acs, traj_rets, traj_rews = [], [], [], []
+        traj_obs, traj_acs, traj_rets, traj_rews, traj_hors = [], [], [], []. []
 
         # Perform initial rollouts
         samples = []
@@ -126,6 +126,7 @@ class MBExperiment:
             traj_acs.extend([sample["ac"] for sample in samples[:self.nrollouts_per_iter]])
             traj_rets.extend([sample["reward_sum"] for sample in samples[:self.neval]])
             traj_rews.extend([sample["rewards"] for sample in samples[:self.nrollouts_per_iter]])
+            traj_hors.extend([sample["plan_hor"] for sample in samples[:self.nrollouts_per_iter]])
             samples = samples[:self.nrollouts_per_iter]
 
             self.policy.dump_logs(self.logdir, iter_dir)
@@ -135,7 +136,8 @@ class MBExperiment:
                     "observations": traj_obs,
                     "actions": traj_acs,
                     "returns": traj_rets,
-                    "rewards": traj_rews
+                    "rewards": traj_rews,
+                    "plan_hors": traj_hors
                 }
             )
             # Delete iteration directory if not used
