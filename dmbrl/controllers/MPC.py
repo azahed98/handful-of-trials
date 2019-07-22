@@ -211,7 +211,7 @@ class MPC(Controller):
             return np.random.uniform(self.ac_lb, self.ac_ub, self.ac_lb.shape), 0
         if self.ac_buf.shape[0] > 0:
             action, self.ac_buf = self.ac_buf[0], self.ac_buf[1:]
-            plan_hor, self.plan_hor_buf = self.plan_hor_buf[0], self.plan_hor_buf
+            plan_hor = self.plan_hor_buf
             return action, plan_hor
 
         if self.model.is_tf_model:
