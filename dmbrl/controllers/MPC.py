@@ -142,7 +142,7 @@ class MPC(Controller):
         if self.model.is_tf_model:
             self.sy_cur_obs = tf.Variable(np.zeros(self.dO), dtype=tf.float32)
             self.ac_seq = tf.placeholder(shape=[1, self.plan_hor*self.dU], dtype=tf.float32)
-            self.pred_cost, self.pred_traj, _ = self._compile_cost(self.ac_seq, get_pred_trajs=True)
+            self.pred_cost, self.pred_traj = self._compile_cost(self.ac_seq, get_pred_trajs=True)
             self.optimizer.setup(self._compile_cost, True)
             self.model.sess.run(tf.variables_initializer([self.sy_cur_obs]))
         else:
@@ -208,7 +208,7 @@ class MPC(Controller):
         Returns: An action (and possibly the predicted cost)
         """
         if not self.has_been_trained:
-            return np.random.uniform(self.ac_lb, self.ac_ub, self.ac_lb.shape)
+            return np.random.uniform(self.ac_lb, self.ac_ub, self.ac_lb.shape), 0
         if self.ac_buf.shape[0] > 0:
             action, self.ac_buf = self.ac_buf[0], self.ac_buf[1:]
             plan_hor, self.plan_hor_buf = self.plan_hor_buf[0], self.plan_hor_buf
@@ -246,7 +246,8 @@ class MPC(Controller):
             if get_pred_cost:
                 action, plan_hor = self.act(obs, t)
                 return action, plan_hor, pred_cost
-        return self.act(obs, t)
+        action, plan_hor = self.act(obs, t)
+        return action, plan_hor
 
     def dump_logs(self, primary_logdir, iter_logdir):
         """Saves logs to either a primary log directory or another iteration-specific directory.
@@ -373,7 +374,7 @@ class MPC(Controller):
                                              tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
                                                                                   .2,  
                                                                                   interpolation="higher",
-                                                                                  keep_dims=True), 7.0)
+                                                                                  keep_dims=True), 7.5)
                                              ) ,tf.bool)
 
             # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
