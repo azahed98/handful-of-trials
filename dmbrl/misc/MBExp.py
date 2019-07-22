@@ -75,7 +75,7 @@ class MBExperiment:
         """
         os.makedirs(self.logdir, exist_ok=True)
 
-        traj_obs, traj_acs, traj_rets, traj_rews, traj_hors = [], [], [], []. []
+        traj_obs, traj_acs, traj_rets, traj_rews, traj_hors = [], [], [], [], []
 
         # Perform initial rollouts
         samples = []

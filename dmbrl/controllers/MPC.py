@@ -142,7 +142,7 @@ class MPC(Controller):
         if self.model.is_tf_model:
             self.sy_cur_obs = tf.Variable(np.zeros(self.dO), dtype=tf.float32)
             self.ac_seq = tf.placeholder(shape=[1, self.plan_hor*self.dU], dtype=tf.float32)
-            self.pred_cost, self.pred_traj = self._compile_cost(self.ac_seq, get_pred_trajs=True)
+            self.pred_cost, self.pred_traj, _ = self._compile_cost(self.ac_seq, get_pred_trajs=True)
             self.optimizer.setup(self._compile_cost, True)
             self.model.sess.run(tf.variables_initializer([self.sy_cur_obs]))
         else:
@@ -373,7 +373,7 @@ class MPC(Controller):
                                              tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
                                                                                   .2,  
                                                                                   interpolation="higher",
-                                                                                  keep_dims=True), 7.5)
+                                                                                  keep_dims=True), 7.0)
                                              ) ,tf.bool)
 
             # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
