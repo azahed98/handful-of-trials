@@ -132,6 +132,7 @@ class MPC(Controller):
         # Controller state variables
         self.has_been_trained = params.prop_cfg.get("model_pretrained", False)
         self.ac_buf = np.array([]).reshape(0, self.dU)
+        self.plan_hor_buf = 0
         self.prev_sol = np.tile((self.ac_lb + self.ac_ub) / 2, [self.plan_hor])
         self.init_var = np.tile(np.square(self.ac_ub - self.ac_lb) / 16, [self.plan_hor])
         self.train_in = np.array([]).reshape(0, self.dU + self.obs_preproc(np.zeros([1, self.dO])).shape[-1])
@@ -141,7 +142,7 @@ class MPC(Controller):
         if self.model.is_tf_model:
             self.sy_cur_obs = tf.Variable(np.zeros(self.dO), dtype=tf.float32)
             self.ac_seq = tf.placeholder(shape=[1, self.plan_hor*self.dU], dtype=tf.float32)
-            self.pred_cost, self.pred_traj = self._compile_cost(self.ac_seq, get_pred_trajs=True)
+            self.pred_cost, self.pred_traj, _ = self._compile_cost(self.ac_seq, get_pred_trajs=True)
             self.optimizer.setup(self._compile_cost, True)
             self.model.sess.run(tf.variables_initializer([self.sy_cur_obs]))
         else:
@@ -210,14 +211,16 @@ class MPC(Controller):
             return np.random.uniform(self.ac_lb, self.ac_ub, self.ac_lb.shape)
         if self.ac_buf.shape[0] > 0:
             action, self.ac_buf = self.ac_buf[0], self.ac_buf[1:]
-            return action
+            plan_hor, self.plan_hor_buf = self.plan_hor_buf[0], self.plan_hor_buf
+            return action, plan_hor
 
         if self.model.is_tf_model:
             self.sy_cur_obs.load(obs, self.model.sess)
 
-        soln = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
+        soln, plan_hor = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
         self.prev_sol = np.concatenate([np.copy(soln)[self.per*self.dU:], np.zeros(self.per*self.dU)])
-        self.ac_buf = soln[:self.per*self.dU].reshape(-1, self.dU)
+        self.ac_buf = soln[:min(self.per, plan_hor)*self.dU].reshape(-1, self.dU)
+        self.plan_hor_buf = plan_hor
 
         if get_pred_cost and not (self.log_traj_preds or self.log_particles):
             if self.model.is_tf_model:
@@ -385,9 +388,9 @@ class MPC(Controller):
             all_costs = tf.where(uncert_mask, -1e6 * tf.ones_like(all_costs), all_costs)
 
             horizons = tf.reduce_max((1-tf.cast(uncert_mask, dtype=tf.int32))*tf.cast(divisor, dtype=tf.int32), axis=0)
-            
+            avg_horizon = tf.reduce_mean(horizons)
             all_costs = tf.Print(all_costs, 
-                                 [tf.reduce_mean(horizons), tf.reduce_max(horizons)],
+                                 [avg_horizon, tf.reduce_max(horizons)],
                                  message="Average, max horizon")
 
             all_costs = tf.tile(tf.reduce_max(all_costs, axis=0)[None, :], [self.plan_hor - self.plan_min, 1])
@@ -401,9 +404,13 @@ class MPC(Controller):
         costs = tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
         if get_pred_trajs:
             pred_trajs = tf.reshape(pred_trajs, [self.plan_hor + 1, -1, self.npart, self.dO])
-            return costs, pred_trajs
+            if self.adap_hor == "adaptive":
+                return costs, pred_trajs, avg_horizon
+            return costs, pred_trajs, 0
         else:
-            return costs
+            if self.adap_hor == "adaptive":
+                return costs, avg_horizon
+            return costs, 0
 
     def _predict_next_obs(self, obs, acs, return_uncertainties=False):
         proc_obs = self.obs_preproc(obs)
