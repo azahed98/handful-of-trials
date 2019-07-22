@@ -29,8 +29,11 @@ def plot_returns(returns):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-log_path', type=str, required=True)
+    parser.add_argument('-horizons', type=int, required=False, default=0)
     args = parser.parse_args()
     logging_data = sio.loadmat('log/' + args.log_path + '/logs.mat')
     returns = logging_data['returns'][0]
     print(returns, len(returns))
     plot_returns(returns)
+    if horizons:
+        pring(logging_data['plan_hors'].shape)
