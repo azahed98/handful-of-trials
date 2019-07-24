@@ -69,8 +69,9 @@ if __name__ == "__main__":
     # ours_2 = ours_2[212:] # Only show post curriculum
     ours_3 = sio.loadmat('log/2019-07-23--17:05:33/logs.mat')['returns'][0]
     ours_3[ours_3 > 100] = 100
+    minlen = min([len(ours_1), len(ours_2), len(ours_3)])
     # ours_3 = ours_3[212:] # Only show post curriculum
-    ours = [ours_1, ours_2, ours_3]
+    ours = [ours_1[:minlen], ours_2[:minlen], ours_3[:minlen]]
 
     pets_1 = sio.loadmat('log/2019-07-18--19:06:37/logs.mat')['returns'][0]
     pets_1[pets_1 > 100] = 100
@@ -80,8 +81,9 @@ if __name__ == "__main__":
     # pets_2 = pets_2[212:] # Only show post curriculum
     pets_3 = sio.loadmat('log/2019-07-18--19:06:13/logs.mat')['returns'][0]
     pets_3[pets_3 > 100] = 100
+    minlen = min([len(pets_1), len(pets_2), len(pets_3)])
     # pets_3 = pets_3[212:] # Only show post curriculum
-    pets = [pets_1, pets_2, pets_3]
+    pets = [pets_1[:minlen], pets_2[:minlen], pets_3[:minlen]]
 
     petsfd_1 = sio.loadmat('log/2019-07-21--03:38:44/logs.mat')['returns'][0]
     petsfd_1[petsfd_1 > 100] = 100
@@ -91,8 +93,9 @@ if __name__ == "__main__":
     # petsfd_2 = petsfd_2[212:] # Only show post curriculum
     petsfd_3 = sio.loadmat('log/2019-07-21--06:49:39/logs.mat')['returns'][0]
     petsfd_3[petsfd_3 > 100] = 100
+    minlen = min([len(petsfd_1), len(petsfd_2), len(petsfd_3)])
     # petsfd_3 = petsfd_3[212:] # Only show post curriculum
-    petsfd = [petsfd_1, petsfd_2, petsfd_3]
+    petsfd = [petsfd_1[:minlen], petsfd_2[:minlen], petsfd_3[:minlen]]
 
     clone_1 = sio.loadmat('log/2019-07-21--21:58:20/logs.mat')['returns'][0]
     clone_1[clone_1 > 100] = 100
@@ -102,6 +105,7 @@ if __name__ == "__main__":
     # clone_2 = clone_2[212: ] # Only show post curriculum
     clone_3 = sio.loadmat('log/2019-07-21--21:58:24/logs.mat')['returns'][0]
     clone_3[clone_3 > 100] = 100
+    minlen = min([len(clone_1), len(clone_2), len(clone_3)])
     # clone_3 = clone_3[212: ] # Only show post curriculum
     clone = [clone_1, clone_2, clone_3]
     # generate 3 sets of random means and confidence intervals to plot
