@@ -314,7 +314,7 @@ class MPC(Controller):
 
             elif self.adap_hor == "adaptive":
                 next_obs, total, aleatoric, epistemic = self._predict_next_obs(cur_obs, cur_acs, return_uncertainties=True)
-                uncertainties = tf.concat([uncertainties, tf.maximum(uncertainties[-1, :] + total[None], self.adap_param + 1)], axis=0)
+                uncertainties = tf.concat([uncertainties, tf.maximum(uncertainties[-1] + total, self.adap_param + 1)[None]], axis=0)
                 delta_cost = tf.reshape(
                     self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
                 )
@@ -341,12 +341,15 @@ class MPC(Controller):
         shape_invariants = [t.get_shape(), init_costs.get_shape(), init_obs.get_shape(), tf.TensorShape([None, None, self.dO])]
 
         cont_fn = continue_prediction
-        if self.adap_hor:
-            uncertainties = tf.zeros(shape=[1,init_obs.shape[0]])
+        if self.adap_hor == "heuristic":
+            uncertainties = tf.zeros(shape=[0,init_obs.shape[0]])
             loop_vars.append(uncertainties)
             shape_invariants.append(tf.TensorShape([None, uncertainties.shape[1]]))
             cont_fn = continue_prediction_heuristic
-        if self.adap_hor == "adaptive":
+        elif self.adap_hor == "adaptive":
+            uncertainties = tf.zeros(shape=[1,init_obs.shape[0]])
+            loop_vars.append(uncertainties)
+            shape_invariants.append(tf.TensorShape([None, uncertainties.shape[1]]))
             all_costs = tf.zeros(shape=[0, init_costs.shape[0], init_costs.shape[1]])
             loop_vars.append(all_costs)
             shape_invariants.append(tf.TensorShape([None, all_costs.shape[1], all_costs.shape[2]]))
@@ -357,7 +360,6 @@ class MPC(Controller):
         )
         if self.adap_hor == "heuristic":
             t, costs, cur_obs, pred_trajs, uncertainties = while_ret
-            uncertainties = uncertainties[1:, :]
             t = tf.Print(t, [t], message="Trajectory length")
             # costs = costs/ tf.cast(t, tf.float32)
         elif self.adap_hor == "adaptive":
