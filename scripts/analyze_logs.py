@@ -97,29 +97,29 @@ if __name__ == "__main__":
     # petsfd_3 = petsfd_3[212:] # Only show post curriculum
     petsfd = [petsfd_1[:minlen], petsfd_2[:minlen], petsfd_3[:minlen]]
 
-    # clone_1 = sio.loadmat('log/2019-07-21--21:58:20/logs.mat')['returns'][0]
-    # clone_1[clone_1 > 100] = 100
-    # # clone_1 = clone_1[212: ] # Only show post curriculum
-    # clone_2 = sio.loadmat('log/2019-07-21--21:58:25/logs.mat')['returns'][0]
-    # clone_2[clone_2 > 100] = 100
-    # # clone_2 = clone_2[212: ] # Only show post curriculum
-    # clone_3 = sio.loadmat('log/2019-07-21--21:58:24/logs.mat')['returns'][0]
-    # clone_3[clone_3 > 100] = 100
-    # minlen = min([len(clone_1), len(clone_2), len(clone_3)])
-    # # clone_3 = clone_3[212: ] # Only show post curriculum
-    # clone = [clone_1, clone_2, clone_3]
+    clone_1 = sio.loadmat('log/2019-07-24--14:13:35/logs.mat')['returns'][0]
+    clone_1[clone_1 > 100] = 100
+    # clone_1 = clone_1[212: ] # Only show post curriculum
+    clone_2 = sio.loadmat('log/2019-07-24--14:13:50/logs.mat')['returns'][0]
+    clone_2[clone_2 > 100] = 100
+    # clone_2 = clone_2[212: ] # Only show post curriculum
+    clone_3 = sio.loadmat('log/2019-07-24--14:13:42/logs.mat')['returns'][0]
+    clone_3[clone_3 > 100] = 100
+    minlen = min([len(clone_1), len(clone_2), len(clone_3)])
+    # clone_3 = clone_3[212: ] # Only show post curriculum
+    clone = [clone_1, clone_2, clone_3]
     # generate 3 sets of random means and confidence intervals to plot
     mean0, lb0, ub0 = get_stats(ours)
     mean1, lb1, ub1 = get_stats(pets)
     mean2, lb2, ub2 = get_stats(petsfd)
-    # mean3, lb3, ub3 = get_stats(clone)
+    mean3, lb3, ub3 = get_stats(clone)
 
     # plot the data
     fig = plt.figure(1, figsize=(7, 2.5))
     plot_mean_and_CI(mean0, ub0, lb0, color_mean='k', color_shading='k')
     plot_mean_and_CI(mean1, ub1, lb1, color_mean='b', color_shading='b')
     plot_mean_and_CI(mean2, ub2, lb2, color_mean='g--', color_shading='g')
-    # plot_mean_and_CI(mean3, ub3, lb3, color_mean='r--', color_shading='r')
+    plot_mean_and_CI(mean3, ub3, lb3, color_mean='r--', color_shading='r')
      
     class LegendObject(object):
         def __init__(self, facecolor='red', edgecolor='white', dashed=False):
@@ -152,12 +152,12 @@ if __name__ == "__main__":
     # with alpha = .5, the faded color is the average of the background and color
     colors_faded = [(np.array(cc.to_rgb(color)) + bg) / 2.0 for color in colors]
      
-    plt.legend([0, 1, 2], ['MEDIUM UNCERT THRES', 'PETS', 'LOW UNCERT THRESH'],
+    plt.legend([0, 1, 2, 3 ], ['MEDIUM UNCERT THRES', 'PETS', 'LOW UNCERT THRESH', "HIGH UNCERT THRES"],
                handler_map={
                    0: LegendObject(colors[0], colors_faded[0]),
                    1: LegendObject(colors[1], colors_faded[1]),
-                   2: LegendObject(colors[2], colors_faded[2], dashed=True)
-                   # 3: LegendObject(colors[3], colors_faded[3], dashed=True),
+                   2: LegendObject(colors[2], colors_faded[2], dashed=True),
+                   3: LegendObject(colors[3], colors_faded[3], dashed=True)
                 }, loc='upper right')
      
     plt.title('Pusher Task: Iteration Cost vs. Time Post Curriculum')
