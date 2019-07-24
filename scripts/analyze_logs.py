@@ -166,4 +166,5 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.grid()
     plt.savefig("pusher.pdf")
+    plt.show()
     # plt.show()
