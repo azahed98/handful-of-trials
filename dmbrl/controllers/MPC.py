@@ -314,7 +314,7 @@ class MPC(Controller):
 
             elif self.adap_hor == "adaptive":
                 next_obs, total, aleatoric, epistemic = self._predict_next_obs(cur_obs, cur_acs, return_uncertainties=True)
-                uncertainties = tf.concat([uncertainties, total[None]], axis=0)
+                uncertainties = tf.concat([uncertainties, tf.maximum(total[None], self.adap_param)], axis=0)
                 delta_cost = tf.reshape(
                     self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
                 )
