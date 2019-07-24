@@ -97,7 +97,7 @@ if __name__ == "__main__":
     # petsfd_3 = petsfd_3[212:] # Only show post curriculum
     petsfd = [petsfd_1[:minlen], petsfd_2[:minlen], petsfd_3[:minlen]]
 
-    clone_1 = sio.loadmat('log/2019-07-24--01:00:425/logs.mat')['returns'][0]
+    clone_1 = sio.loadmat('log/2019-07-24--01:00:42/logs.mat')['returns'][0]
     clone_1[clone_1 > 100] = 100
     # clone_1 = clone_1[212: ] # Only show post curriculum
     clone_2 = sio.loadmat('log/2019-07-24--01:00:45/logs.mat')['returns'][0]
