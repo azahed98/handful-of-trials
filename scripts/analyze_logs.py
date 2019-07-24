@@ -112,7 +112,7 @@ if __name__ == "__main__":
     mean0, lb0, ub0 = get_stats(ours)
     mean1, lb1, ub1 = get_stats(pets)
     mean2, lb2, ub2 = get_stats(petsfd)
-    mean3, lb3, ub3 = get_stats(clone)
+    # mean3, lb3, ub3 = get_stats(clone)
 
     # plot the data
     fig = plt.figure(1, figsize=(7, 2.5))
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     # with alpha = .5, the faded color is the average of the background and color
     colors_faded = [(np.array(cc.to_rgb(color)) + bg) / 2.0 for color in colors]
      
-    plt.legend([0, 1, 2, 3], ['SAVED', 'PETS', 'PETSfD', 'Clone'],
+    plt.legend([0, 1, 2], ['MEDIUM UNCERT THRES', 'PETS', 'LOW UNCERT THRESH'],
                handler_map={
                    0: LegendObject(colors[0], colors_faded[0]),
                    1: LegendObject(colors[1], colors_faded[1]),
