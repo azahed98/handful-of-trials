@@ -102,7 +102,7 @@ class MPC(Controller):
         self.plan_hor = get_required_argument(params.opt_cfg, "plan_hor", "Must provide planning horizon.")
         self.adap_hor = params.opt_cfg.get("adap_hor", None)
         self.plan_min = params.opt_cfg.get("plan_min", 10)
-        self.adap_param = params.opt_cfg.get("adap_param", 1.0)
+        self.adap_param = params.opt_cfg.get("adap_param", 15.0)
 
         self.obs_cost_fn = get_required_argument(params.opt_cfg, "obs_cost_fn", "Must provide cost on observations.")
         self.ac_cost_fn = get_required_argument(params.opt_cfg, "ac_cost_fn", "Must provide cost on actions.")
@@ -314,7 +314,7 @@ class MPC(Controller):
 
             elif self.adap_hor == "adaptive":
                 next_obs, total, aleatoric, epistemic = self._predict_next_obs(cur_obs, cur_acs, return_uncertainties=True)
-                uncertainties = tf.concat([uncertainties, total[None]], axis=0)
+                uncertainties = tf.concat([uncertainties, tf.maximum(uncertainties[-1, :] + total[None], self.adap_param + 1)], axis=0)
                 delta_cost = tf.reshape(
                     self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
                 )
@@ -367,14 +367,14 @@ class MPC(Controller):
             raise NotImplementedError
         
         if self.adap_hor == "adaptive":
-            cum_uncert = tf.math.cumsum(uncertainties, axis=0)[self.plan_min:, :]
-
+            # cum_uncert = tf.math.cumsum(uncertainties, axis=0)[self.plan_min:, :]
+            cum_uncert = uncertainties
             cropped_trajs = tf.reshape(pred_trajs[self.plan_min + 1:], [-1, self.dO])
             uncert_mask = tf.cast(tf.greater(cum_uncert, 
                                              tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
                                                                                   .2,  
                                                                                   interpolation="higher",
-                                                                                  keep_dims=True), 17.0)
+                                                                                  keep_dims=True), self.adap_param)
                                              ) ,tf.bool)
 
             # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
