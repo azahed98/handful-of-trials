@@ -35,5 +35,11 @@ if __name__ == "__main__":
     returns = logging_data['returns'][0]
     print(returns, len(returns))
     plot_returns(returns)
-    if horizons:
-        pring(logging_data['plan_hors'].shape)
+    if args.horizons:
+        print(logging_data['plan_hors'].shape)
+        plt.plot(np.mean(logging_data['plan_hors'], axis=0))
+        plt.title("Average horizon per iteration")
+        plt.xlabel("Iteration")
+        plt.ylabel("Average Planning horizon")
+        plt.show()
+

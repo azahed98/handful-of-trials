@@ -374,7 +374,7 @@ class MPC(Controller):
                                              tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
                                                                                   .2,  
                                                                                   interpolation="higher",
-                                                                                  keep_dims=True), 10)
+                                                                                  keep_dims=True), 17.0)
                                              ) ,tf.bool)
 
             # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
