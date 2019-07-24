@@ -342,7 +342,7 @@ class MPC(Controller):
 
         cont_fn = continue_prediction
         if self.adap_hor:
-            uncertainties = tf.zeros(shape=[0,init_obs.shape[0]])
+            uncertainties = tf.zeros(shape=[1,init_obs.shape[0]])
             loop_vars.append(uncertainties)
             shape_invariants.append(tf.TensorShape([None, uncertainties.shape[1]]))
             cont_fn = continue_prediction_heuristic
@@ -357,10 +357,12 @@ class MPC(Controller):
         )
         if self.adap_hor == "heuristic":
             t, costs, cur_obs, pred_trajs, uncertainties = while_ret
+            uncertainties = uncertainties[1:, :]
             t = tf.Print(t, [t], message="Trajectory length")
             # costs = costs/ tf.cast(t, tf.float32)
         elif self.adap_hor == "adaptive":
             t, costs, cur_obs, pred_trajs, uncertainties, all_costs = while_ret
+            uncertainties = uncertainties[1:, :]
         elif self.adap_hor is None:
             t, costs, cur_obs, pred_trajs = while_ret
         else:
