@@ -83,13 +83,13 @@ if __name__ == "__main__":
     # pets_3 = pets_3[212:] # Only show post curriculum
     pets = [pets_1, pets_2, pets_3]
 
-    petsfd_1 = sio.loadmat('log/2019-02-19--23:59:03/logs.mat')['returns'][0]
+    petsfd_1 = sio.loadmat('log/2019-07-21--03:38:44/logs.mat')['returns'][0]
     petsfd_1[petsfd_1 > 100] = 100
     # petsfd_1 = petsfd_1[212:] # Only show post curriculum
-    petsfd_2 = sio.loadmat('log/2019-02-19--23:58:41/logs.mat')['returns'][0]
+    petsfd_2 = sio.loadmat('log/2019-07-21--06:49:43/logs.mat')['returns'][0]
     petsfd_2[petsfd_2 > 100] = 100
     # petsfd_2 = petsfd_2[212:] # Only show post curriculum
-    petsfd_3 = sio.loadmat('log/2019-02-19--23:57:23/logs.mat')['returns'][0]
+    petsfd_3 = sio.loadmat('log/2019-07-21--06:49:39/logs.mat')['returns'][0]
     petsfd_3[petsfd_3 > 100] = 100
     # petsfd_3 = petsfd_3[212:] # Only show post curriculum
     petsfd = [petsfd_1, petsfd_2, petsfd_3]
