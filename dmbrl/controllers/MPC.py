@@ -378,7 +378,7 @@ class MPC(Controller):
                                              ) ,tf.bool)
 
             # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
-            uncert_mask = tf.concat([tf.zeros_like(uncert_mask[0])[None,:], uncert_mask[1:, :]], axis=0)
+            # uncert_mask = tf.concat([tf.zeros_like(uncert_mask[0])[None,:], uncert_mask[1:, :]], axis=0)
             
             uncert_mask = tf.Print(uncert_mask, [tf.reduce_sum(tf.cast(uncert_mask, tf.float32), axis=0),
                                                  cum_uncert[:,15],
