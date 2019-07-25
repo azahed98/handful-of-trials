@@ -20,7 +20,7 @@ class HalfCheetahConfigModule:
     PLAN_HOR = 50
     ADAP_HOR = "adaptive"
     PLAN_MIN = 15
-    ADAP_PARAM = 15.0
+    ADAP_PARAM = 7.0
     MODEL_IN, MODEL_OUT = 24, 18
     GP_NINDUCING_POINTS = 300
 
