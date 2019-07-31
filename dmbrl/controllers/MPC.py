@@ -400,7 +400,7 @@ class MPC(Controller):
 
             all_costs = tf.where(uncert_mask, 1e6 * tf.ones_like(all_costs), all_costs)
 
-            costs = tf.reduce_min(all_costs, axis=0)[None, :] / horizons
+            costs = tf.reduce_min(all_costs, axis=0)[None, :] / tf.cast(horizons, tf.float32)
             costs = tf.reshape(costs, [nopt, self.npart])
         
         # Replace nan costs with very high cost
