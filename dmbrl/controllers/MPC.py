@@ -398,6 +398,10 @@ class MPC(Controller):
 
             all_costs = tf.tile(tf.reduce_max(all_costs, axis=0)[None, :], [self.plan_hor - self.plan_min, 1])
 
+            print(horizons.shape)
+            input("waiting...")
+            print(all_costs.shape)
+            input("waiting...")
             all_costs = tf.where(uncert_mask, 1e6 * tf.ones_like(all_costs), all_costs)
 
             costs = tf.reduce_min(all_costs, axis=0)[None, :]
