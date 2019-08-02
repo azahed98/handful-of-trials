@@ -220,6 +220,7 @@ class MPC(Controller):
         soln, plan_hor = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
         self.prev_sol = np.concatenate([np.copy(soln)[self.per*self.dU:], np.zeros(self.per*self.dU)])
         self.ac_buf = soln[:min(self.per, plan_hor)*self.dU].reshape(-1, self.dU)
+        print(self.ac_buf.shape)
         self.plan_hor_buf = plan_hor
 
         if get_pred_cost and not (self.log_traj_preds or self.log_particles):
