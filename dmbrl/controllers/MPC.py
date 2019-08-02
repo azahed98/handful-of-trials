@@ -372,8 +372,8 @@ class MPC(Controller):
 
             cropped_trajs = tf.reshape(pred_trajs[self.plan_min + 1:], [-1, self.dO])
             uncert_mask = tf.cast(tf.greater(cum_uncert, 
-                                             tf.maximum(tf.contrib.distributions.percentile(cum_uncert, 
-                                                                                  .2,  
+                                             tf.maximum(tf.contrib.distributions.percentile(cum_uncert[0], 
+                                                                                  .9,  
                                                                                   interpolation="higher",
                                                                                   keep_dims=True), self.adap_param)
                                              ) ,tf.bool)
