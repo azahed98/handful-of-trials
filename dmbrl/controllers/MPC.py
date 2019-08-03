@@ -371,13 +371,15 @@ class MPC(Controller):
             cum_uncert = tf.math.cumsum(uncertainties, axis=0)[self.plan_min:, :]
 
             cropped_trajs = tf.reshape(pred_trajs[self.plan_min + 1:], [-1, self.dO])
+            # uncert_mask = tf.cast(tf.greater(cum_uncert, 
+            #                                  tf.maximum(tf.contrib.distributions.percentile(cum_uncert[0], 
+            #                                                                       .9,  
+            #                                                                       interpolation="higher",
+            #                                                                       keep_dims=True), self.adap_param)
+            #                                  ) ,tf.bool)
             uncert_mask = tf.cast(tf.greater(cum_uncert, 
-                                             tf.maximum(tf.contrib.distributions.percentile(cum_uncert[0], 
-                                                                                  .9,  
-                                                                                  interpolation="higher",
-                                                                                  keep_dims=True), self.adap_param)
-                                             ) ,tf.bool)
-
+                                             tf.maximum(tf.reduce_max(cum_uncert[0]),  self.adap_param)
+                                            ), tf.bool)
             # uncert_mask = tf.cast(tf.greater(cum_uncert, tf.maximum(tf.reduce_max(cum_uncert[0]), .55)),tf.bool)
             # uncert_mask = tf.concat([tf.zeros_like(uncert_mask[0])[None,:], uncert_mask[1:, :]], axis=0)
             
