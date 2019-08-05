@@ -17,8 +17,8 @@ class HalfCheetahConfigModule:
     TASK_HORIZON = 1000
     NTRAIN_ITERS = 300
     NROLLOUTS_PER_ITER = 1
-    PLAN_HOR = 40
-    ADAP_HOR = "adaptive"
+    PLAN_HOR = 25
+    ADAP_HOR = None
     PLAN_MIN = 10
     ADAP_PARAM = 14.0
     MODEL_IN, MODEL_OUT = 24, 18

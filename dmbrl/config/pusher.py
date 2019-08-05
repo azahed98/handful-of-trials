@@ -20,7 +20,7 @@ class PusherConfigModule:
     PLAN_HOR = 40
     ADAP_HOR = "adaptive"
     PLAN_MIN = 15
-    ADAP_PARAM = 7.0
+    ADAP_PARAM = 4.0
     MODEL_IN, MODEL_OUT = 27, 20
     GP_NINDUCING_POINTS = 200
 
