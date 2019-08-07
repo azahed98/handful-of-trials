@@ -219,7 +219,6 @@ class MPC(Controller):
             self.sy_cur_obs.load(obs, self.model.sess)
 
         soln, plan_hor = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
-        print(soln, plan_hor)
         self.prev_sol = np.concatenate([np.copy(soln)[self.per*self.dU:], np.zeros(self.per*self.dU)])
         self.ac_buf = soln[:min(self.per, plan_hor)*self.dU].reshape(-1, self.dU)
         print(self.ac_buf.shape)
