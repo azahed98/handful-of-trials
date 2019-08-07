@@ -102,6 +102,7 @@ class MPC(Controller):
         self.plan_hor = get_required_argument(params.opt_cfg, "plan_hor", "Must provide planning horizon.")
         self.adap_hor = params.opt_cfg.get("adap_hor", None)
         self.plan_min = params.opt_cfg.get("plan_min", 10)
+        self.iter_plan_hor = self.plan_min
         self.adap_param = params.opt_cfg.get("adap_param", 15.0)
 
         self.obs_cost_fn = get_required_argument(params.opt_cfg, "obs_cost_fn", "Must provide cost on observations.")
@@ -218,6 +219,7 @@ class MPC(Controller):
             self.sy_cur_obs.load(obs, self.model.sess)
 
         soln, plan_hor = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
+        print(soln, plan_hor)
         self.prev_sol = np.concatenate([np.copy(soln)[self.per*self.dU:], np.zeros(self.per*self.dU)])
         self.ac_buf = soln[:min(self.per, plan_hor)*self.dU].reshape(-1, self.dU)
         print(self.ac_buf.shape)
@@ -324,7 +326,10 @@ class MPC(Controller):
                 next_obs = self.obs_postproc2(next_obs)
                 pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
                 return t+1, total_cost, next_obs, pred_trajs, uncertainties, all_costs
-            
+            elif self.adap_hor == "iterative":
+                # We should pass in the horizon, and just go upto that
+                # The horizon is calculated outside
+                raise NotImplementedError
             elif self.adap_hor is None:
                 next_obs = self._predict_next_obs(cur_obs, cur_acs)
                 delta_cost = tf.reshape(
@@ -352,6 +357,10 @@ class MPC(Controller):
             loop_vars.append(all_costs)
             shape_invariants.append(tf.TensorShape([None, all_costs.shape[1], all_costs.shape[2]]))
             cont_fn = continue_prediction
+        if self.adap_hor == "iterative":
+            # Calculate horizon 
+
+            raise NotImplementedError
         while_ret = tf.while_loop(
             cond=cont_fn, body=iteration, loop_vars=loop_vars,
             shape_invariants=shape_invariants
@@ -412,11 +421,11 @@ class MPC(Controller):
             pred_trajs = tf.reshape(pred_trajs, [self.plan_hor + 1, -1, self.npart, self.dO])
             if self.adap_hor == "adaptive":
                 return costs, pred_trajs, avg_horizon
-            return costs, pred_trajs, 0
+            return costs, pred_trajs, self.plan_hor
         else:
             if self.adap_hor == "adaptive":
                 return costs, avg_horizon
-            return costs, 0
+            return costs, self.plan_hor
 
     def _predict_next_obs(self, obs, acs, return_uncertainties=False):
         proc_obs = self.obs_preproc(obs)
