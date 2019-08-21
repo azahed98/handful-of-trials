@@ -157,9 +157,9 @@ class MBExperiment:
             if self.policy.prev_uncert == -1:
                 self.policy.prev_uncert = self.policy.cur_tot_uncert/self.policy.cur_count
             else:
-                if self.policy.cur_tot_uncert/prev_uncert < self.policy.prev_uncert - self.policy.adap_param:
+                if self.policy.cur_tot_uncert/self.policy.prev_uncert < self.policy.prev_uncert - self.policy.adap_param:
                     self.policy.iter_plan_hor += 1
-                elif self.policy.cur_tot_uncert/prev_uncert > self.policy.prev_uncert + self.policy.adap_param:
+                elif self.policy.cur_tot_uncert/self.policy.prev_uncert > self.policy.prev_uncert + self.policy.adap_param:
                     self.policy.iter_plan_hor -= 1
             self.policy.cur_count = 0
             self.policy.cur_tot_uncert = 0
