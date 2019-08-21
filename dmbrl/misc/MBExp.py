@@ -98,8 +98,7 @@ class MBExperiment:
 
         if self.policy.adap_hor == "iterative":
             self.policy.prev_uncert = -1
-            # init params
-            raise NotImplementedError
+
         # Training loop
         for i in range(self.ntrain_iters):
             print("####################################################################")
