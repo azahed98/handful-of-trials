@@ -97,7 +97,7 @@ class CEMOptimizer(Optimizer):
             with self.tf_sess.graph.as_default():
                 self.num_opt_iters, self.mean, self.var, self.best_val, self.best_sol, self.plan_hor, self.uncert = tf.while_loop(
                     cond=continue_optimization, body=iteration,
-                    loop_vars=[0, self.init_mean, self.init_var, float("inf"), self.init_mean, 0, 0]
+                    loop_vars=[0, self.init_mean, self.init_var, float("inf"), self.init_mean, 0, 0.0]
                 )
 
     def reset(self):
