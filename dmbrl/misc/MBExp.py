@@ -96,8 +96,8 @@ class MBExperiment:
                 [sample["rewards"] for sample in samples]
             )
 
-        if policy.adap_hor == "iterative":
-            policy.prev_uncert = -1
+        if self.policy.adap_hor == "iterative":
+            self.policy.prev_uncert = -1
             # init params
             raise NotImplementedError
         # Training loop
@@ -155,12 +155,12 @@ class MBExperiment:
                     [sample["rewards"] for sample in samples]
                 )
 
-            if policy.prev_uncert == -1:
-                policy.prev_uncert = policy.cur_tot_uncert/policy.cur_count
+            if self.policy.prev_uncert == -1:
+                self.policy.prev_uncert = self.policy.cur_tot_uncert/self.policy.cur_count
             else:
-                if policy.cur_tot_uncert/prev_uncert < policy.prev_uncert - policy.adap_param:
-                    policy.iter_plan_hor += 1
-                elif policy.cur_tot_uncert/prev_uncert > policy.prev_uncert + policy.adap_param:
-                    policy.iter_plan_hor -= 1
-            policy.cur_count = 0
-            policy.cur_tot_uncert = 0
+                if self.policy.cur_tot_uncert/prev_uncert < self.policy.prev_uncert - self.policy.adap_param:
+                    self.policy.iter_plan_hor += 1
+                elif self.policy.cur_tot_uncert/prev_uncert > self.policy.prev_uncert + self.policy.adap_param:
+                    self.policy.iter_plan_hor -= 1
+            self.policy.cur_count = 0
+            self.policy.cur_tot_uncert = 0
