@@ -67,7 +67,7 @@ class CEMOptimizer(Optimizer):
         if not tf_compatible:
             self.cost_function = cost_function
         else:
-            def continue_optimization(t, mean, var, best_val, best_sol, plan_hor):
+            def continue_optimization(t, mean, var, best_val, best_sol, plan_hor, uncert):
                 return tf.logical_and(tf.less(t, self.max_iters), tf.reduce_max(var) > self.epsilon)
 
             def iteration(t, mean, var, best_val, best_sol, plan_hor):
@@ -76,7 +76,7 @@ class CEMOptimizer(Optimizer):
                 constrained_var = tf.minimum(tf.minimum(tf.square(lb_dist / 2), tf.square(ub_dist / 2)), var)
                 samples = tf.truncated_normal([self.popsize, self.sol_dim], mean, tf.sqrt(constrained_var))
 
-                costs, plan_hor = cost_function(samples)
+                costs, plan_hor, uncert = cost_function(samples)
                 values, indices = tf.nn.top_k(-costs, k=self.num_elites, sorted=True)
 
                 best_val, best_sol = tf.cond(
@@ -92,12 +92,12 @@ class CEMOptimizer(Optimizer):
                 mean = self.alpha * mean + (1 - self.alpha) * new_mean
                 var = self.alpha * var + (1 - self.alpha) * new_var
 
-                return t + 1, mean, var, best_val, best_sol, plan_hor
+                return t + 1, mean, var, best_val, best_sol, plan_hor, uncert
 
             with self.tf_sess.graph.as_default():
-                self.num_opt_iters, self.mean, self.var, self.best_val, self.best_sol, self.plan_hor = tf.while_loop(
+                self.num_opt_iters, self.mean, self.var, self.best_val, self.best_sol, self.plan_hor, self.uncert = tf.while_loop(
                     cond=continue_optimization, body=iteration,
-                    loop_vars=[0, self.init_mean, self.init_var, float("inf"), self.init_mean, 0]
+                    loop_vars=[0, self.init_mean, self.init_var, float("inf"), self.init_mean, 0, 0]
                 )
 
     def reset(self):
@@ -111,8 +111,8 @@ class CEMOptimizer(Optimizer):
             init_var (np.ndarray): The variance of the initial candidate distribution.
         """
         if self.tf_compatible:
-            sol, solvar, plan_hor = self.tf_sess.run(
-                [self.mean, self.var, self.plan_hor],
+            sol, solvar, plan_hor, uncert = self.tf_sess.run(
+                [self.mean, self.var, self.plan_hor, self.uncert],
                 feed_dict={self.init_mean: init_mean, self.init_var: init_var}
             )
         else:
@@ -136,4 +136,4 @@ class CEMOptimizer(Optimizer):
 
                 t += 1
             sol, solvar = mean, var
-        return sol, plan_hor
+        return sol, plan_hor, uncert
