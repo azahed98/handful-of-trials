@@ -155,7 +155,7 @@ class MBExperiment:
                     [sample["rewards"] for sample in samples]
                 )
 
-            if policy.prev_uncert = -1:
+            if policy.prev_uncert == -1:
                 policy.prev_uncert = policy.cur_tot_uncert/policy.cur_count
             else:
                 if policy.cur_tot_uncert/prev_uncert < policy.prev_uncert - policy.adap_param:

@@ -146,7 +146,7 @@ class MPC(Controller):
         if self.model.is_tf_model:
             self.sy_cur_obs = tf.Variable(np.zeros(self.dO), dtype=tf.float32)
             self.ac_seq = tf.placeholder(shape=[1, self.plan_hor*self.dU], dtype=tf.float32)
-            self.pred_cost, self.pred_traj, _ = self._compile_cost(self.ac_seq, get_pred_trajs=True)
+            self.pred_cost, self.pred_traj, _, __ = self._compile_cost(self.ac_seq, get_pred_trajs=True)
             self.optimizer.setup(self._compile_cost, True)
             self.model.sess.run(tf.variables_initializer([self.sy_cur_obs]))
         else:
@@ -365,7 +365,7 @@ class MPC(Controller):
             cond=cont_fn, body=iteration, loop_vars=loop_vars,
             shape_invariants=shape_invariants
         )
-        if self.adap_hor == "heuristic":
+        if self.adap_hor == "heuristic" or self.adap_hor == "iterative":
             t, costs, cur_obs, pred_trajs, uncertainties = while_ret
             t = tf.Print(t, [t], message="Trajectory length")
             # costs = costs/ tf.cast(t, tf.float32)
