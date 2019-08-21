@@ -70,7 +70,7 @@ class CEMOptimizer(Optimizer):
             def continue_optimization(t, mean, var, best_val, best_sol, plan_hor, uncert):
                 return tf.logical_and(tf.less(t, self.max_iters), tf.reduce_max(var) > self.epsilon)
 
-            def iteration(t, mean, var, best_val, best_sol, plan_hor):
+            def iteration(t, mean, var, best_val, best_sol, plan_hor, uncert):
                 mean = tf.Print(mean, [mean.shape, var.shape], message="iteration shapes")
                 lb_dist, ub_dist = mean - self.lb, self.ub - mean
                 constrained_var = tf.minimum(tf.minimum(tf.square(lb_dist / 2), tf.square(ub_dist / 2)), var)
