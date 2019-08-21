@@ -104,6 +104,9 @@ class MPC(Controller):
         self.plan_min = params.opt_cfg.get("plan_min", 10)
         self.iter_plan_hor = self.plan_min
         self.adap_param = params.opt_cfg.get("adap_param", 15.0)
+        self.prev_uncert = -1
+        self.cur_tot_uncert = 0
+        self.cur_count = 0
 
         self.obs_cost_fn = get_required_argument(params.opt_cfg, "obs_cost_fn", "Must provide cost on observations.")
         self.ac_cost_fn = get_required_argument(params.opt_cfg, "ac_cost_fn", "Must provide cost on actions.")
@@ -218,7 +221,9 @@ class MPC(Controller):
         if self.model.is_tf_model:
             self.sy_cur_obs.load(obs, self.model.sess)
 
-        soln, plan_hor = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
+        soln, plan_hor, uncert = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
+        self.cur_tot_uncert += uncert
+        self.cur_count += 1
         self.prev_sol = np.concatenate([np.copy(soln)[self.per*self.dU:], np.zeros(self.per*self.dU)])
         self.ac_buf = soln[:min(self.per, plan_hor)*self.dU].reshape(-1, self.dU)
         print(self.ac_buf.shape)
@@ -287,7 +292,8 @@ class MPC(Controller):
 
         def continue_prediction(t, *args):
             return tf.less(t, self.plan_hor)
-
+        def continue_prediction_iterative(t, *args):
+            return tf.less(t, self.iter_plan_hor)
         def continue_prediction_heuristic(t, total_cost, cur_obs, pred_trajs, uncertainties, *args):
             uncertainty_avg = tf.reduce_mean(uncertainties)
             h = tf.cast(1.0/(tf.log(.5 * uncertainty_avg + 1)), tf.int32)
@@ -298,7 +304,7 @@ class MPC(Controller):
 
         def iteration(t, total_cost, cur_obs, pred_trajs, uncertainties=None, all_costs=None):
             cur_acs = ac_seqs[t]
-            if self.adap_hor == "heuristic":
+            if self.adap_hor == "heuristic" or self.adap_hor == "iterative":
                 next_obs, total, aleatoric, epistemic = self._predict_next_obs(cur_obs, cur_acs, return_uncertainties=True)
                 uncertainties_shape = uncertainties.shape
 
@@ -325,10 +331,6 @@ class MPC(Controller):
                 next_obs = self.obs_postproc2(next_obs)
                 pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
                 return t+1, total_cost, next_obs, pred_trajs, uncertainties, all_costs
-            elif self.adap_hor == "iterative":
-                # We should pass in the horizon, and just go upto that
-                # The horizon is calculated outside
-                raise NotImplementedError
             elif self.adap_hor is None:
                 next_obs = self._predict_next_obs(cur_obs, cur_acs)
                 delta_cost = tf.reshape(
@@ -357,9 +359,8 @@ class MPC(Controller):
             shape_invariants.append(tf.TensorShape([None, all_costs.shape[1], all_costs.shape[2]]))
             cont_fn = continue_prediction
         if self.adap_hor == "iterative":
-            # Calculate horizon 
+            cont_fn = continue_prediction_iterative
 
-            raise NotImplementedError
         while_ret = tf.while_loop(
             cond=cont_fn, body=iteration, loop_vars=loop_vars,
             shape_invariants=shape_invariants
@@ -419,12 +420,16 @@ class MPC(Controller):
         if get_pred_trajs:
             pred_trajs = tf.reshape(pred_trajs, [self.plan_hor + 1, -1, self.npart, self.dO])
             if self.adap_hor == "adaptive":
-                return costs, pred_trajs, avg_horizon
-            return costs, pred_trajs, self.plan_hor
+                return costs, pred_trajs, avg_horizon, tf.reduce_mean(uncertainties)
+            elif self.adap_hor == "iterative":
+                return costs, pred_trajs, self.iter_plan_hor, tf.reduce_mean(uncertainties)
+            return costs, pred_trajs, self.plan_hor, 0
         else:
             if self.adap_hor == "adaptive":
-                return costs, avg_horizon
-            return costs, self.plan_hor
+                return costs, avg_horizon, tf.reduce_mean(uncertainties)
+            elif self.adap_hor == "iterative":
+                return costs, self.iter_plan_hor, tf.reduce_mean(uncertainties)
+            return costs, self.plan_hor, 0
 
     def _predict_next_obs(self, obs, acs, return_uncertainties=False):
         proc_obs = self.obs_preproc(obs)
